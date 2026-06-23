@@ -2,44 +2,42 @@ name: Sync Words
 
 on:
   schedule:
-    - cron: '0 16 * * *' # 每周日下午 4 点自动运行
-  workflow_dispatch:   # 支持手动触发
+    - cron: '0 16 * * *'
+  workflow_dispatch:
 
 jobs:
   sync:
     runs-on: ubuntu-latest
-    
+    # ❗【重要修改 1】赋予机器人向你仓库提交代码的权限
     permissions:
       contents: write
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
-          ref: main
-          fetch-depth: 0 # ✨ 保险 1：拉取完整的 Git 历史，不让版本工具因找不到历史而抓狂
+          fetch-depth: 0
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: '10.0.x'
+          dotnet-quality: 'ga'
 
-      - name: Run Sync Script
+      - name: Run Sync
+        run: dotnet run --project src/EudicSyncToMaiMemo/EudicSyncToMaiMemo.csproj --configuration Release -- --sync-once
         env:
-          EUDIC_AUTHORIZATION: ${{ secrets.EUDIC_AUTHORIZATION }}
-          EUDIC_BOOK_ID: ${{ secrets.EUDIC_BOOK_ID }}
-          MAIMEMO_TOKEN: ${{ secrets.MAIMEMO_TOKEN }}
-          MAIMEMO_NOTEPAD_ID: ${{ secrets.MAIMEMO_NOTEPAD_ID }}
-          NOTIFICATION_ENABLED: ${{ secrets.NOTIFICATION_ENABLED }}
-          NOTIFICATION_URL: ${{ secrets.NOTIFICATION_URL }}
-          NBGV_Disable: true # ✨ 保险 2：直接强制禁用版本计算。老子只是来同步单词的，不需要版本号！
-        run: |
-          dotnet run --project src/EudicSyncToMaiMemo/EudicSyncToMaiMemo.csproj
-
+          Eudic__Authorization: ${{ secrets.EUDIC_AUTHORIZATION }}
+          Eudic__DefaultBookId: ${{ secrets.EUDIC_BOOK_ID }}
+          MaiMemo__Provider: OpenApi
+          MaiMemo__Token: ${{ secrets.MAIMEMO_TOKEN }}
+          MaiMemo__DefaultNotepadId: ${{ secrets.MAIMEMO_NOTEPAD_ID }}
+          Notification__Enabled: ${{ secrets.NOTIFICATION_ENABLED }}
+          Notification__Url: ${{ secrets.NOTIFICATION_URL }}
+          Notification__RequestBody: ${{ secrets.NOTIFICATION_REQUEST_BODY }}
+          Notification__Headers: ${{ secrets.NOTIFICATION_HEADERS }}
+      # ❗【重要修改 2】原生防休眠大招：每次跑完自动推一个空提交，永远不触发 60 天休眠机制
       - name: Keep Workflow Alive
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git pull origin main --rebase
           git commit --allow-empty -m "Keepalive: Auto-commit to prevent workflow suspension"
-          git push origin main
+          git push          
