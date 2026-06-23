@@ -2,7 +2,7 @@ name: Sync Words
 
 on:
   schedule:
-    - cron: '0 8 * * 0' # 每周日下午 4 点自动运行
+    - cron: '0 16 * * *' # 每周日下午 4 点自动运行
   workflow_dispatch:   # 支持手动触发
 
 jobs:
