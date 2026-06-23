@@ -13,11 +13,11 @@ jobs:
       contents: write
 
     steps:
-      # ✨ 核心改动 1：强行让机器人真正切换到 main 分支，拒绝临时快照
       - name: Checkout
         uses: actions/checkout@v4
         with:
           ref: main
+          fetch-depth: 0 # ✨ 保险 1：拉取完整的 Git 历史，不让版本工具因找不到历史而抓狂
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -32,20 +32,14 @@ jobs:
           MAIMEMO_NOTEPAD_ID: ${{ secrets.MAIMEMO_NOTEPAD_ID }}
           NOTIFICATION_ENABLED: ${{ secrets.NOTIFICATION_ENABLED }}
           NOTIFICATION_URL: ${{ secrets.NOTIFICATION_URL }}
+          NBGV_Disable: true # ✨ 保险 2：直接强制禁用版本计算。老子只是来同步单词的，不需要版本号！
         run: |
           dotnet run --project src/EudicSyncToMaiMemo/EudicSyncToMaiMemo.csproj
 
-      # ✨ 核心改动 2：调整顺序，先对齐网络，再原地提交
       - name: Keep Workflow Alive
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          
-          # 1. 无论你在网页上改了多少次配置，先强行把网上的最新代码拉下来对齐
           git pull origin main --rebase
-          
-          # 2. 在绝对清净、最新的代码基础上，提交防休眠“空气”
           git commit --allow-empty -m "Keepalive: Auto-commit to prevent workflow suspension"
-          
-          # 3. 精准推送到远程 main 分支
           git push origin main
