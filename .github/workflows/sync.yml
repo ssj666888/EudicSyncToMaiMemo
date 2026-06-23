@@ -2,43 +2,50 @@ name: Sync Words
 
 on:
   schedule:
-    - cron: '0 16 * * *'
-  workflow_dispatch:
+    - cron: '0 8 * * 0' # 每周日下午 4 点自动运行
+  workflow_dispatch:   # 支持手动触发
 
 jobs:
   sync:
     runs-on: ubuntu-latest
-    # ❗【重要修改 1】赋予机器人向你仓库提交代码的权限
+    
     permissions:
       contents: write
+
     steps:
-      - uses: actions/checkout@v6
+      # ✨ 核心改动 1：强行让机器人真正切换到 main 分支，拒绝临时快照
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          ref: main
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
-          dotnet-quality: 'ga'
+          dotnet-version: 8.0.x
 
-      - name: Run Sync
-        run: dotnet run --project src/EudicSyncToMaiMemo/EudicSyncToMaiMemo.csproj --configuration Release -- --sync-once
+      - name: Run Sync Script
         env:
-          Eudic__Authorization: ${{ secrets.EUDIC_AUTHORIZATION }}
-          Eudic__DefaultBookId: ${{ secrets.EUDIC_BOOK_ID }}
-          MaiMemo__Provider: OpenApi
-          MaiMemo__Token: ${{ secrets.MAIMEMO_TOKEN }}
-          MaiMemo__DefaultNotepadId: ${{ secrets.MAIMEMO_NOTEPAD_ID }}
-          Notification__Enabled: ${{ secrets.NOTIFICATION_ENABLED }}
-          Notification__Url: ${{ secrets.NOTIFICATION_URL }}
-          Notification__RequestBody: ${{ secrets.NOTIFICATION_REQUEST_BODY }}
-          Notification__Headers: ${{ secrets.NOTIFICATION_HEADERS }}
-      # ❗【重要修改 2】原生防休眠大招：每次跑完自动推一个空提交，永远不触发 60 天休眠机制
+          EUDIC_AUTHORIZATION: ${{ secrets.EUDIC_AUTHORIZATION }}
+          EUDIC_BOOK_ID: ${{ secrets.EUDIC_BOOK_ID }}
+          MAIMEMO_TOKEN: ${{ secrets.MAIMEMO_TOKEN }}
+          MAIMEMO_NOTEPAD_ID: ${{ secrets.MAIMEMO_NOTEPAD_ID }}
+          NOTIFICATION_ENABLED: ${{ secrets.NOTIFICATION_ENABLED }}
+          NOTIFICATION_URL: ${{ secrets.NOTIFICATION_URL }}
+        run: |
+          dotnet run --project src/EudicSyncToMaiMemo/EudicSyncToMaiMemo.csproj
+
+      # ✨ 核心改动 2：调整顺序，先对齐网络，再原地提交
       - name: Keep Workflow Alive
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
+          
+          # 1. 无论你在网页上改了多少次配置，先强行把网上的最新代码拉下来对齐
+          git pull origin main --rebase
+          
+          # 2. 在绝对清净、最新的代码基础上，提交防休眠“空气”
           git commit --allow-empty -m "Keepalive: Auto-commit to prevent workflow suspension"
-          git pull --rebase origin main
-          git push          
+          
+          # 3. 精准推送到远程 main 分支
+          git push origin main
