@@ -39,5 +39,8 @@ jobs:
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
+          # 先强行把网上的最新代码拉下来对齐，彻底消灭冲突
+          git pull origin main --rebase
+          # 再盖上防休眠章并推送到远程
           git commit --allow-empty -m "Keepalive: Auto-commit to prevent workflow suspension"
-          git push          
+          git push origin main        
