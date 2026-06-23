@@ -2,12 +2,15 @@ name: Sync Words
 
 on:
   schedule:
-    - cron: '0 8 * * 0'
+    - cron: '0 16 * * *'
   workflow_dispatch:
 
 jobs:
   sync:
     runs-on: ubuntu-latest
+    # ❗【重要修改 1】赋予机器人向你仓库提交代码的权限
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v6
         with:
@@ -31,3 +34,10 @@ jobs:
           Notification__Url: ${{ secrets.NOTIFICATION_URL }}
           Notification__RequestBody: ${{ secrets.NOTIFICATION_REQUEST_BODY }}
           Notification__Headers: ${{ secrets.NOTIFICATION_HEADERS }}
+      # ❗【重要修改 2】原生防休眠大招：每次跑完自动推一个空提交，永远不触发 60 天休眠机制
+      - name: Keep Workflow Alive
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git commit --allow-empty -m "Keepalive: Auto-commit to prevent workflow suspension"
+          git push          
